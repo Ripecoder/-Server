@@ -227,5 +227,8 @@ Output JSON ONLY.
     conn.commit()
 
     return jsonify({"reply": ai_reply}) 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    # Render provides a PORT environment variable automatically
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
+
