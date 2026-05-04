@@ -37,7 +37,8 @@ def get_ai_reply(messages):
     res = requests.post(ENDPOINT, headers=HEADERS, json=data)
 
     if res.status_code != 200:
-        return "AI error"
+        print("🔥 GROQ ERROR:", res.status_code, res.text)
+        return f"AI error: {res.status_code}"
 
     return res.json()["choices"][0]["message"]["content"]
 
