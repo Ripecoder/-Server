@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-import psycopg2
+import psycopg
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -13,7 +13,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # ── DB CONNECTION ─────────────────────────
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 # ── AI CALL ───────────────────────────────
 MODEL = "openai/gpt-oss-120b"
