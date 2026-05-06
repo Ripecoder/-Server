@@ -11,71 +11,49 @@ CORS(app)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# ── DB CONNECTION ─────────────────────────
+# ── DB CONNECTION (Fixed for Supabase Pooler) ────────────────
 def get_conn():
-    return psycopg.connect(DATABASE_URL)
+    # prepare_threshold=None is required for Supabase port 6543
+    return psycopg.connect(DATABASE_URL, prepare_threshold=None)
 
-# ── AI CALL ───────────────────────────────
-MODEL = "openai/gpt-oss-120b"
-ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+# ── SINGLE AI CALL (Faster & Cheaper) ───────────────────────
+MODEL = "llama-3.3-70b-versatile" 
+ENDPOINT = "https://groq.com"
 HEADERS = {
     "Authorization": f"Bearer {GROQ_API_KEY}",
     "Content-Type": "application/json"
 }
 
-def get_ai_reply(messages):
-    data = {
-        "model": MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a real estate assistant. Ask short questions to collect budget, location, bhk and phone."
-            }
-        ] + messages
+def get_ai_response_and_data(messages):
+    system_prompt = """
+    You are a real estate assistant. 
+    1. Provide a short, friendly reply to the user.
+    2. Extract budget, location, bhk, and phone.
+    3. Return ONLY a JSON object:
+    {
+      "reply": "your message here",
+      "extracted": {"budget": "", "location": "", "bhk": "", "phone": ""}
     }
-
-    res = requests.post(ENDPOINT, headers=HEADERS, json=data)
-
-    if res.status_code != 200:
-        print("🔥 GROQ ERROR:", res.status_code, res.text)
-        return f"AI error: {res.status_code}"
-
-    return res.json()["choices"][0]["message"]["content"]
-
-# ── DATA EXTRACTION ───────────────────────
-def extract_data(messages):
+    """
+    
     data = {
         "model": MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": """Return ONLY JSON:
-{
-"budget":"",
-"location":"",
-"bhk":"",
-"phone":""
-}
-"""
-            }
-        ] + messages
+        "messages": [{"role": "system", "content": system_prompt}] + messages,
+        "response_format": {"type": "json_object"}
     }
 
     try:
         res = requests.post(ENDPOINT, headers=HEADERS, json=data)
-        content = res.json()["choices"][0]["message"]["content"]
-        content = content.replace("```json", "").replace("```", "").strip()
-        return json.loads(content)
-    except:
-        return {}
+        res.raise_for_status()
+        return res.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        print("🔥 AI ERROR:", str(e))
+        return None
 
-def clean(data):
-    return {
-        "budget": ''.join(filter(str.isdigit, str(data.get("budget", "")))),
-        "location": data.get("location"),
-        "bhk": ''.join(filter(str.isdigit, str(data.get("bhk", "")))),
-        "phone": ''.join(filter(str.isdigit, str(data.get("phone", ""))))
-    }
+# ── DATA CLEANING ───────────────────────
+def clean(val):
+    if not val: return None
+    return ''.join(filter(str.isdigit, str(val)))
 
 # ── ROUTE ────────────────────────────────
 @app.route("/chat", methods=["POST"])
@@ -83,42 +61,43 @@ def chat():
     req = request.json
     messages = req.get("messages", [])
 
-    ai_reply = get_ai_reply(messages)
+    # Get both reply and data in ONE go
+    raw_response = get_ai_response_and_data(messages)
+    
+    if not raw_response:
+        return jsonify({"reply": "Sorry, I'm having trouble connecting. Try again?"})
 
-    extracted = clean(extract_data(messages))
+    result = json.loads(raw_response)
+    ai_reply = result.get("reply")
+    ext = result.get("extracted", {})
 
     # ── SAVE LEAD IF PHONE EXISTS ──
-    if extracted.get("phone"):
+    phone = clean(ext.get("phone"))
+    if phone:
         try:
-            conn = get_conn()
-            cur = conn.cursor()
-
-            cur.execute("""
-                INSERT INTO "Leads" (name, phoneno, location, budget, bhk)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                "unknown",
-                extracted.get("phone"),
-                extracted.get("location"),
-                extracted.get("budget") or None,
-                extracted.get("bhk") or None
-            ))
-
-            conn.commit()
-            cur.close()
-            conn.close()
-
+            # Using 'with' handles opening/closing/committing automatically
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO Leads (client_name, phoneno, location, bhk)
+                        VALUES (%s, %s, %s, %s)
+                    """, (
+                        "unknown",
+                        phone,
+                        ext.get("location"),
+                        int(clean(ext.get("bhk"))) if clean(ext.get("bhk")) else None
+                    ))
             print("🔥 LEAD STORED")
-
         except Exception as e:
             print("DB ERROR:", str(e))
 
     return jsonify({"reply": ai_reply})
 
-# ── HEALTH CHECK ─────────────────────────
 @app.route("/")
 def home():
     return "Server running"
 
 if __name__ == "__main__":
-    app.run()
+    # Render provides a PORT environment variable
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
