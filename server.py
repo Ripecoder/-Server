@@ -13,8 +13,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # ── DB CONNECTION (Fixed for Supabase Pooler) ────────────────
 def get_conn():
-    # prepare_threshold=None is required for Supabase port 6543
-    return psycopg.connect(DATABASE_URL, prepare_threshold=None)
+    url = os.getenv("DATABASE_URL")
+    print(f"DEBUG: URL is {url[:10] if url else 'NONE'}") # Add this!
+    return psycopg.connect(url, prepare_threshold=None)
+
 
 # ── SINGLE AI CALL (Faster & Cheaper) ───────────────────────
 MODEL = "llama-3.3-70b-versatile" 
