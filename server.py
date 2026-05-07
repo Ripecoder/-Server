@@ -134,7 +134,6 @@ def chat():
 
         print("EXTRACTED:", ext)
 
-        phone = clean_number(ext.get("phone"))
         bhk = clean_number(ext.get("bhk"))
         budget = clean_number(ext.get("budget"))
 
@@ -150,7 +149,7 @@ def chat():
                         cur.execute("""
                             INSERT INTO leads
                             (
-                                client_name,
+                                id,
                                 phoneno,
                                 location,
                                 budget,
@@ -159,8 +158,8 @@ def chat():
 
                             VALUES (%s, %s, %s, %s, %s)
                         """, (
-                            "unknown",
-                            phone,
+                            123,
+                            ext.get("phone")
                             ext.get("location"),
                             int(budget) if budget else None,
                             int(bhk) if bhk else None
