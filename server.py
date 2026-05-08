@@ -134,6 +134,7 @@ def chat():
 
         print("EXTRACTED:", ext)
 
+        phone = clean_number(ext.get("phone"))
         bhk = clean_number(ext.get("bhk"))
         budget = clean_number(ext.get("budget"))
 
@@ -157,7 +158,7 @@ def chat():
 
                             VALUES (%s, %s, %s, %s)
                         """, (
-                            ext.get("phone"),
+                            phone,
                             ext.get("location"),
                             int(budget) if budget else None,
                             int(bhk) if bhk else None
