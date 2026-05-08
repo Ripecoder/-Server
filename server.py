@@ -167,7 +167,7 @@ def chat():
                             phone,
                             location, 
                             int(budget) if budget else None,
-                            int(bhk) if bhk else None
+                            int(bhk) if bhk else None,
                             special_preferences
                         ))
 
