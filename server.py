@@ -149,17 +149,15 @@ def chat():
                         cur.execute("""
                             INSERT INTO leads
                             (
-                                id,
                                 phoneno,
                                 location,
                                 budget,
                                 bhk
                             )
 
-                            VALUES (%s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s)
                         """, (
-                            123,
-                            ext.get("phone")
+                            ext.get("phone"),
                             ext.get("location"),
                             int(budget) if budget else None,
                             int(bhk) if bhk else None
