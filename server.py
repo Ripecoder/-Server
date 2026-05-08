@@ -162,7 +162,7 @@ def chat():
                                 special_prefrences
                             )
 
-                            VALUES (%s, %s, %s, %s)
+                            VALUES (%s,%s, %s, %s, %s)
                         """, (
                             phone,
                             location, 
