@@ -138,9 +138,9 @@ def chat():
         phone = clean_number(ext.get("phone"))
         bhk = clean_number(ext.get("bhk"))
         budget = clean_number(ext.get("budget"))
-
+        location =ext.get("location")
         # ── STORE LEAD ──────────────────
-        if phone:
+        if phone and bhk and budget and location:
 
             try:
 
@@ -160,7 +160,7 @@ def chat():
                             VALUES (%s, %s, %s, %s)
                         """, (
                             phone,
-                            ext.get("location"),
+                            location, 
                             int(budget) if budget else None,
                             int(bhk) if bhk else None
                         ))
