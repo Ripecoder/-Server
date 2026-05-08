@@ -49,8 +49,10 @@ Your tasks:
 - location
 - bhk
 - phone
+- special preferences (nearby public transport, sea view, balcony etc
 
 Return ONLY valid JSON.
+Convert budget to integers (dont use comas, decimals)
 
 Format:
 {
@@ -59,7 +61,8 @@ Format:
     "budget": "",
     "location": "",
     "bhk": "",
-    "phone": ""
+    "phone": "",
+    "special_preferences": ""
   }
 }
 """
@@ -138,7 +141,8 @@ def chat():
         phone = clean_number(ext.get("phone"))
         bhk = clean_number(ext.get("bhk"))
         budget = clean_number(ext.get("budget"))
-        location =ext.get("location")
+        location = ext.get("location")
+        special_preferences = ext.get("special_preferences")
         # ── STORE LEAD ──────────────────
         if phone and bhk and budget and location:
 
@@ -154,7 +158,8 @@ def chat():
                                 phoneno,
                                 location,
                                 budget,
-                                bhk
+                                bhk,
+                                special_prefrences
                             )
 
                             VALUES (%s, %s, %s, %s)
@@ -163,6 +168,7 @@ def chat():
                             location, 
                             int(budget) if budget else None,
                             int(bhk) if bhk else None
+                            special_preferences
                         ))
 
                 print("✅ LEAD STORED")
