@@ -19,6 +19,7 @@ print("DATABASE URL EXISTS:", bool(DATABASE_URL))
 
 # ── DATABASE CONNECTION ────────────────
 def get_conn():
+    print("DATABASE_URL:",DATABASE_URL)
     return psycopg.connect(
         DATABASE_URL,
         sslmode="require",
