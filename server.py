@@ -159,7 +159,7 @@ def chat():
                                 location,
                                 budget,
                                 bhk,
-                                special_prefrences
+                                special_preferences
                             )
 
                             VALUES (%s,%s, %s, %s, %s)
