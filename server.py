@@ -165,7 +165,8 @@ def chat():
             client_url = request.headers.get("Referer")
         parsed = urlparse(client_url)
         client_url = f"{parsed.scheme}://{parsed.netloc}"
-        
+        print("client_url",client_url)
+        print("api_key",api_key)
         client_data = verify_client(client_url, api_key)
 
         if not client_data["valid"]:
