@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import psycopg
-
+from urllib.parse import urlparse
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -14,12 +14,8 @@ CORS(app)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-print("GROQ KEY EXISTS:", bool(GROQ_API_KEY))
-print("DATABASE URL EXISTS:", bool(DATABASE_URL))
-
 # ── DATABASE CONNECTION ────────────────
 def get_conn():
-    print("DATABASE_URL:",DATABASE_URL)
     return psycopg.connect(
         DATABASE_URL,
         sslmode="require",
@@ -49,7 +45,7 @@ Your tasks:
 - location
 - bhk
 - phone
-- special preferences (nearby public transport, sea view, balcony etc
+- special preferences (nearby public transport, sea view, balcony etc)
 
 Return ONLY valid JSON.
 Convert budget to integers (dont use comas, decimals)
@@ -112,14 +108,78 @@ def clean_number(val):
     digits = ''.join(filter(str.isdigit, str(val)))
 
     return digits if digits else None
-
-# ── CHAT ROUTE ─────────────────────────
-@app.route("/chat", methods=["POST"])
-def chat():
+    
+def verify_client(client_url, api_key):
 
     try:
 
+        with get_conn() as conn:
+
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    SELECT
+                        client_has_paid
+                    FROM clients
+                    WHERE
+                        client_website_url = %s
+                        AND client_api_key = %s
+                """, (
+                    client_url,
+                    api_key
+                ))
+
+                result = cur.fetchone()
+
+                # no client found
+                if not result:
+
+                    return {
+                        "valid": False,
+                        "paid": False
+                    }
+
+                has_paid = result[0]                    
+                return {
+                    "valid": True,
+                    "paid": has_paid
+                }
+
+    except Exception as e:
+
+        print("VERIFY CLIENT ERROR:", str(e))
+
+        return {
+            "valid": False,
+            "paid": False
+        }
+# ── CHAT ROUTE ─────────────────────────
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        
         req = request.json
+        api_key = req.get("api_key")
+        client_url = request.headers.get("Origin")
+        if not client_url:
+            client_url = request.headers.get("Referer")
+        parsed = urlparse(client_url)
+        client_url = f"{parsed.scheme}://{parsed.netloc}"
+        
+        client_data = verify_client(client_url, api_key)
+
+        if not client_data["valid"]:
+
+            return jsonify({
+            "reply": "Invalid client."
+    })
+
+        if not client_data["paid"]:
+
+            return jsonify({
+            "reply": "Service inactive."
+    })
+
 
         messages = req.get("messages", [])
 
