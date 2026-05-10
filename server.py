@@ -256,7 +256,7 @@ def chat():
                 """,
                 to=f'whatsapp:+91{phoneno}'
             )
-                   print("WHATSAPP SENT:", message.sid)
+                print("WHATSAPP SENT:", message.sid)
 
             
             except Exception as e:
