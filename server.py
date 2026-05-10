@@ -5,6 +5,7 @@ import psycopg
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from twilio.rest import Client
 
 # ── APP ─────────────────────────────────
 app = Flask(__name__)
@@ -13,6 +14,8 @@ CORS(app)
 # ── ENV VARIABLES ──────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+account_sid = os.getenv("account_sid")
+auth_token = os.getenv("auth_token")
 
 # ── DATABASE CONNECTION ────────────────
 def get_conn():
@@ -119,7 +122,8 @@ def verify_client(client_url, api_key):
 
                 cur.execute("""
                     SELECT
-                        client_has_paid
+                        client_has_paid,
+                        client_phone
                     FROM clients
                     WHERE
                         client_website_url = %s
@@ -139,10 +143,12 @@ def verify_client(client_url, api_key):
                         "paid": False
                     }
 
-                has_paid = result[0]                    
+                has_paid = result[0]      
+                phoneno = result[1]
                 return {
                     "valid": True,
-                    "paid": has_paid
+                    "paid": has_paid,
+                    "client_phone":phoneno
                 }
 
     except Exception as e:
@@ -157,7 +163,6 @@ def verify_client(client_url, api_key):
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
-        
         req = request.json
         api_key = req.get("api_key")
         client_url = request.headers.get("Origin")
@@ -233,7 +238,27 @@ def chat():
                         ))
 
                 print("✅ LEAD STORED")
+                client = Client(account_sid, auth_token)
+                phoneno = client_data["client_phone"]
+                message = client.messages.create(
+                from_='whatsapp:+14155238886',
+                        
+                body=f"""
+                🔥 New Lead
 
+                Phone: {phone}
+                Location: {location}
+                Budget: ₹{budget}
+                BHK: {bhk}
+
+                Preferences:
+                {special_preferences}
+                """,
+                to=f'whatsapp:+91{phoneno}'
+            )
+            print("WHATSAPP SENT:", message.sid)
+
+            
             except Exception as e:
 
                 print("DB ERROR:", str(e))
