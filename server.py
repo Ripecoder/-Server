@@ -274,7 +274,6 @@ def chat():
                 phoneno = client_data["client_phone"] or req.get("client_phone")
                 message = client.messages.create(
                 from_='whatsapp:+14155238886',
-                print("phone no",phoneno)
                 body=f"""
                 🔥 New Lead
                 Intent: {intent}
@@ -289,7 +288,7 @@ def chat():
                 to=f'whatsapp:+91{phoneno}'
             )
                 print("WHATSAPP SENT:", message.sid)
-
+                print("phone no",phoneno)
             
             except Exception as e:
 
