@@ -216,7 +216,7 @@ def chat():
         special_preferences = ext.get("special_preferences")
         intent = ext.get("intent")
         # ── STORE LEAD ──────────────────
-        if phone and bhk and budget and location:
+        if phone:
 
             try:
 
@@ -255,7 +255,7 @@ def chat():
                         
                 body=f"""
                 🔥 New Lead
-
+                Intent: {intent}
                 Phone: {phone}
                 Location: {location}
                 Budget: ₹{budget}
