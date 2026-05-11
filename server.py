@@ -271,7 +271,7 @@ def chat():
 
                 print("✅ LEAD STORED")
                 client = Client(account_sid, auth_token)
-                phoneno = client_data["client_phone"]
+                phoneno = client_data["client_phone"] or req.get("client_phone")
                 message = client.messages.create(
                 from_='whatsapp:+14155238886',
                         
