@@ -124,6 +124,7 @@ def verify_client(client_url, api_key):
                     SELECT
                         client_has_paid,
                         client_phone
+                        client_name
                     FROM clients
                     WHERE
                         client_website_url = %s
@@ -145,10 +146,12 @@ def verify_client(client_url, api_key):
 
                 has_paid = result[0]      
                 phoneno = result[1]
+                client_name = result[2]
                 return {
                     "valid": True,
                     "paid": has_paid,
-                    "client_phone":phoneno
+                    "client_phone":phoneno,
+                    "client_name":client_name
                 }
 
     except Exception as e:
@@ -186,7 +189,7 @@ def chat():
             "reply": "Service inactive."
     })
 
-
+        client_name = client_data["client_name"]
         messages = req.get("messages", [])
 
         print("MESSAGES:", messages)
@@ -225,16 +228,18 @@ def chat():
                                 location,
                                 budget,
                                 bhk,
-                                special_preferences
+                                special_preferences,
+                                client_name
                             )
 
-                            VALUES (%s,%s, %s, %s, %s)
+                            VALUES (%s,%s, %s, %s, %s,%s)
                         """, (
                             phone,
                             location, 
                             int(budget) if budget else None,
                             int(bhk) if bhk else None,
-                            special_preferences
+                            special_preferences,
+                            client_name
                         ))
 
                 print("✅ LEAD STORED")
