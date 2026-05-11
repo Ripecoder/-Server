@@ -90,7 +90,7 @@ FORMAT:
 }
 """
 
-    payload = {
+payload = {
         "model": MODEL,
         "messages": [
             {
