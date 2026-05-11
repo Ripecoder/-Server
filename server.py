@@ -37,8 +37,8 @@ HEADERS = {
 
 # ── AI FUNCTION ────────────────────────
 def get_ai_response_and_data(messages):
-
-   system_prompt = """
+    
+    system_prompt = """
 You are a smart real estate sales assistant.
 
 Your job is to naturally talk to the user and collect these details:
@@ -90,7 +90,7 @@ FORMAT:
 }
 """
 
-payload = {
+    payload = {
         "model": MODEL,
         "messages": [
             {
