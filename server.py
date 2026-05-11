@@ -123,7 +123,7 @@ def verify_client(client_url, api_key):
                 cur.execute("""
                     SELECT
                         client_has_paid,
-                        client_phone
+                        client_phone,
                         client_name
                     FROM clients
                     WHERE
