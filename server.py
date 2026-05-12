@@ -311,6 +311,24 @@ def chat():
 def home():
     return "Server running"
 
+@app.route("/webhook", methods=["GET"])
+def verify():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode == "subscribe" and token == "verve123":
+        return challenge, 200
+
+    return "Verification failed", 403
+
+
+@app.route("/webhook", methods=["POST"])
+def receive():
+    data = request.json
+    print("INCOMING:", data)
+    return "ok", 200
+
 # ── START SERVER ───────────────────────
 if __name__ == "__main__":
 
