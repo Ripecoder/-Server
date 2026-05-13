@@ -274,7 +274,7 @@ def chat():
         req = request.json
 
         api_key = req.get("api_key")
-        session_id = req.get("SESSION_ID")
+        session_id = req.get("session_id")
 
         client_url = request.headers.get("Origin")
 
