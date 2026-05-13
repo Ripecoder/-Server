@@ -275,15 +275,12 @@ def send_lead_email(client_email, lead_data):
 
     msg.body = f"""
 New Lead Received
-
-Name: {lead_data.get('name')}
-Phone: {lead_data.get('phone')}
+Intent: {lead_data.get('intent')}
+Phone: {lead_data.get('phoneno')}
 Budget: {lead_data.get('budget')}
 Location: {lead_data.get('location')}
 BHK: {lead_data.get('bhk')}
-
-Conversation:
-{lead_data.get('conversation')}
+Special preferences: {lead_data.get('special_preferences')}
 """
 
     mail.send(msg)
