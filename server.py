@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import psycopg
+import resend
 
 from urllib.parse import urlparse
 
@@ -29,7 +30,9 @@ mail = Mail(app)
 # ── ENV VARIABLES ──────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
+resend.api_key = RESEND_API_KEY
 
 # ── DATABASE CONNECTION ────────────────
 def get_conn():
@@ -231,8 +234,47 @@ def email_creator(session_id):
         print("EMAIL CREATOR ERROR:", str(e))
         return None
 
+# ── SEND EMAIL(directly) ─────────────────────────
 
-# ── SEND EMAIL ─────────────────────────
+def send_lead_email(client_email, lead_data):
+
+    try:
+
+        resend.Emails.send({
+
+            "from": "onboarding@resend.dev",
+
+            "to": client_email,
+
+            "subject": "🔥 New Real Estate Lead",
+
+            "html": f"""
+
+            <h2>🔥 New Lead Received</h2>
+
+            <p><b>Intent:</b> {lead_data.get('intent')}</p>
+
+            <p><b>Phone:</b> {lead_data.get('phoneno')}</p>
+
+            <p><b>Budget:</b> {lead_data.get('budget')}</p>
+
+            <p><b>Location:</b> {lead_data.get('location')}</p>
+
+            <p><b>BHK:</b> {lead_data.get('bhk')}</p>
+
+            <p><b>Special Preferences:</b> {lead_data.get('special_preferences')}</p>
+
+            """
+        })
+
+        print("✅ EMAIL SENT")
+
+    except Exception as e:
+
+        print("RESEND ERROR:", str(e))
+
+# ── SEND EMAIL(directly) ─────────────────────────(temporarily shut down, using resend instead)
+"""
 def send_lead_email(client_email, lead_data):
 
     try:
@@ -243,7 +285,7 @@ def send_lead_email(client_email, lead_data):
             recipients=[client_email]
         )
 
-        msg.body = f"""
+        msg.body = f"""""""
 🔥 New Lead Received
 
 Intent: {lead_data.get('intent')}
@@ -254,7 +296,7 @@ BHK: {lead_data.get('bhk')}
 
 Special Preferences:
 {lead_data.get('special_preferences')}
-"""
+""""""
 
         mail.send(msg)
 
@@ -263,7 +305,7 @@ Special Preferences:
     except Exception as e:
 
         print("EMAIL ERROR:", str(e))
-
+"""
 
 # ── CHAT ROUTE ─────────────────────────
 @app.route("/chat", methods=["POST"])
