@@ -2,33 +2,34 @@ import os
 import json
 import requests
 import psycopg
+
 from urllib.parse import urlparse
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from twilio.rest import Client
-from flask_mail import Mail, Message
-
-# ── Email setup  ────────────────────────
 
 from flask_mail import Mail, Message
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'yourgmail@gmail.com'
-app.config['MAIL_PASSWORD'] = 'your_app_password'
-
-mail = Mail(app)
 
 # ── APP ─────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
+
+# ── EMAIL SETUP ─────────────────────────
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
+app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
+
+mail = Mail(app)
+
+
 # ── ENV VARIABLES ──────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
-account_sid = os.getenv("account_sid")
-auth_token = os.getenv("auth_token")
+
 
 # ── DATABASE CONNECTION ────────────────
 def get_conn():
@@ -37,6 +38,7 @@ def get_conn():
         sslmode="require",
         prepare_threshold=None
     )
+
 
 # ── GROQ CONFIG ────────────────────────
 MODEL = "llama-3.3-70b-versatile"
@@ -48,15 +50,16 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
+
 # ── AI FUNCTION ────────────────────────
 def get_ai_response_and_data(messages):
-    
+
     system_prompt = """
 You are a smart real estate sales assistant.
 
 Your job is to naturally talk to the user and collect these details:
 
-- intent (buy, rent, commercial, office, etc)
+- intent
 - location
 - budget
 - bhk
@@ -68,25 +71,9 @@ IMPORTANT RULES:
 1. Talk naturally like a real human sales assistant.
 2. Keep replies short and conversational.
 3. Stay focused on real estate only.
-4. If the user goes off-topic, politely bring them back to property discussion.
-5. Gradually collect all important details.
-6. DO NOT ask for phone number early.
-7. Ask for phone number ONLY AFTER you already have:
-   - intent
-   - location
-   - budget
-   - bhk
-8. After collecting all important details, ask for WhatsApp/phone number.
-9. Once phone number is received, clearly say:
-   "Perfect. Our team will contact you shortly on WhatsApp/phone."
-
-10. If user already provides multiple details together, do not ask them again.
-11. Extract data even if spelling mistakes exist.
-12. Convert budgets like:
-   - 2Cr -> 20000000
-   - 75L -> 7500000
-13. If a field is missing, keep it empty.
-14. Return ONLY valid JSON.
+4. Gradually collect all important details.
+5. Ask for phone number only after other details are collected.
+6. Return ONLY valid JSON.
 
 FORMAT:
 
@@ -139,6 +126,7 @@ FORMAT:
         print("AI ERROR:", str(e))
         return None
 
+
 # ── CLEAN NUMBERS ──────────────────────
 def clean_number(val):
 
@@ -149,7 +137,8 @@ def clean_number(val):
 
     return digits if digits else None
 
-# ── VERIFY CLIENTS ──────────────────────
+
+# ── VERIFY CLIENT ──────────────────────
 def verify_client(client_url, api_key):
 
     try:
@@ -161,7 +150,6 @@ def verify_client(client_url, api_key):
                 cur.execute("""
                     SELECT
                         client_has_paid,
-                        client_phone,
                         client_name,
                         client_email
                     FROM clients
@@ -175,7 +163,6 @@ def verify_client(client_url, api_key):
 
                 result = cur.fetchone()
 
-                # no client found
                 if not result:
 
                     return {
@@ -183,16 +170,15 @@ def verify_client(client_url, api_key):
                         "paid": False
                     }
 
-                has_paid = result[0]      
-                phoneno = result[1]
-                client_name = result[2]
-                client_email = result[3]
+                has_paid = result[0]
+                client_name = result[1]
+                client_email = result[2]
+
                 return {
                     "valid": True,
                     "paid": has_paid,
-                    "client_phone":phoneno,
-                    "client_name":client_name,
-                    "client_email":client_email
+                    "client_name": client_name,
+                    "client_email": client_email
                 }
 
     except Exception as e:
@@ -203,8 +189,9 @@ def verify_client(client_url, api_key):
             "valid": False,
             "paid": False
         }
-        
-# ── EMAIL CREATION ──────────────────────
+
+
+# ── EMAIL DATA FETCH ───────────────────
 def email_creator(session_id):
 
     try:
@@ -222,106 +209,108 @@ def email_creator(session_id):
                         special_preferences,
                         intent
                     FROM leads
-                    WHERE
-                        session_id = %s 
-                                         
-                    """, (
-                    session_id
-                ))
+                    WHERE session_id = %s
+                """, (session_id,))
 
                 result = cur.fetchone()
 
-                # no client found
                 if not result:
+                    return None
 
-                    return {
-                        "valid": False,
-                        "paid": False
-                    }
-
-                        phoneno = result[0]
-                        location = result[1]
-                        budget = result[2]
-                        bhk = result[3]
-                        special_preferences = result[4]
-                        intent = result[5]
                 return {
-                    "phoneno":phoneno,
-                    "location":location,
-                    "budget":budget,
-                    "bhk":bhk,
-                    "special_preferences":special_preferences,
-                    "intent":intent
+                    "phoneno": result[0],
+                    "location": result[1],
+                    "budget": result[2],
+                    "bhk": result[3],
+                    "special_preferences": result[4],
+                    "intent": result[5]
                 }
 
     except Exception as e:
 
-        print("VERIFY CLIENT ERROR:", str(e))
-
-        return {
-            "valid": False,
-            "paid": False
-        }
+        print("EMAIL CREATOR ERROR:", str(e))
+        return None
 
 
-# ── EMAIL SENDING ──────────────────────
-
+# ── SEND EMAIL ─────────────────────────
 def send_lead_email(client_email, lead_data):
-    msg = Message(
-        subject="🔥 New Real Estate Lead",
-        sender=app.config['MAIL_USERNAME'],
-        recipients=[client_email]
-    )
 
-    msg.body = f"""
-New Lead Received
+    try:
+
+        msg = Message(
+            subject="🔥 New Real Estate Lead",
+            sender=app.config['MAIL_USERNAME'],
+            recipients=[client_email]
+        )
+
+        msg.body = f"""
+🔥 New Lead Received
+
 Intent: {lead_data.get('intent')}
 Phone: {lead_data.get('phoneno')}
 Budget: {lead_data.get('budget')}
 Location: {lead_data.get('location')}
 BHK: {lead_data.get('bhk')}
-Special preferences: {lead_data.get('special_preferences')}
+
+Special Preferences:
+{lead_data.get('special_preferences')}
 """
 
-    mail.send(msg)
+        mail.send(msg)
+
+        print("✅ EMAIL SENT")
+
+    except Exception as e:
+
+        print("EMAIL ERROR:", str(e))
+
 
 # ── CHAT ROUTE ─────────────────────────
 @app.route("/chat", methods=["POST"])
 def chat():
+
     try:
+
         req = request.json
+
         api_key = req.get("api_key")
         session_id = req.get("SESSION_ID")
+
         client_url = request.headers.get("Origin")
+
         if not client_url:
             client_url = request.headers.get("Referer")
+
         parsed = urlparse(client_url)
+
         client_url = f"{parsed.scheme}://{parsed.netloc}"
-        print("client_url",client_url)
-        print("api_key",api_key)
+
+        print("client_url:", client_url)
+        print("api_key:", api_key)
+
         client_data = verify_client(client_url, api_key)
 
         if not client_data["valid"]:
 
             return jsonify({
-            "reply": "Invalid client."
-    })
+                "reply": "Invalid client."
+            })
 
         if not client_data["paid"]:
 
             return jsonify({
-            "reply": "Service inactive."
-    })
+                "reply": "Service inactive."
+            })
 
         client_name = client_data["client_name"]
         client_email = client_data["client_email"]
-        messages = req.get("messages", [])
 
-        print("MESSAGES:", messages)
+        messages = req.get("messages", [])
 
         result = get_ai_response_and_data(messages)
 
         if not result:
+
             return jsonify({
                 "reply": "AI temporarily unavailable."
             })
@@ -335,9 +324,11 @@ def chat():
         phone = clean_number(ext.get("phone"))
         bhk = clean_number(ext.get("bhk"))
         budget = clean_number(ext.get("budget"))
+
         location = ext.get("location")
         special_preferences = ext.get("special_preferences")
         intent = ext.get("intent")
+
         # ── STORE LEAD ──────────────────
         if phone:
 
@@ -359,11 +350,10 @@ def chat():
                                 intent,
                                 session_id
                             )
-
-                            VALUES (%s,%s, %s, %s, %s,%s,%s,%s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """, (
                             phone,
-                            location, 
+                            location,
                             int(budget) if budget else None,
                             int(bhk) if bhk else None,
                             special_preferences,
@@ -373,33 +363,12 @@ def chat():
                         ))
 
                 print("✅ LEAD STORED")
-                # here goes email implementation.....
 
                 lead_data = email_creator(session_id)
-                send_lead_email(client_email,lead_data)
-                
-                #whatsapp implement, removed from V1 fro reasons, lol
-                """
-                client = Client(account_sid, auth_token)
-                phoneno = client_data["client_phone"] or req.get("client_phone")
-                message = client.messages.create(
-                from_='whatsapp:+14155238886',
-                body=f
-                🔥 New Lead
-                Intent: {intent}
-                Phone: {phone}
-                Location: {location}
-                Budget: ₹{budget}
-                BHK: {bhk}
 
-                Preferences:
-                {special_preferences}
-                ,
-                to=f'whatsapp:+91{phoneno}'
-            )
-                print("WHATSAPP SENT:", message.sid)
-                print("phone no",phoneno)
-            
+                if lead_data:
+                    send_lead_email(client_email, lead_data)
+
             except Exception as e:
 
                 print("DB ERROR:", str(e))
@@ -416,29 +385,12 @@ def chat():
             "reply": "Server error"
         }), 500
 
+
 # ── HEALTH CHECK ───────────────────────
 @app.route("/")
 def home():
     return "Server running"
 
-@app.route("/webhook", methods=["GET"])
-def verify():
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
-
-    if mode == "subscribe" and token == "verve123":
-        return challenge, 200
-
-    return "Verification failed", 403
-
-
-@app.route("/webhook", methods=["POST"])
-def receive():
-    data = request.json
-    print("INCOMING:", data)
-    return "ok", 200
-    """
 
 # ── START SERVER ───────────────────────
 if __name__ == "__main__":
