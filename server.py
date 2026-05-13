@@ -6,6 +6,19 @@ from urllib.parse import urlparse
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from twilio.rest import Client
+from flask_mail import Mail, Message
+
+# ── Email setup  ────────────────────────
+
+from flask_mail import Mail, Message
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'yourgmail@gmail.com'
+app.config['MAIL_PASSWORD'] = 'your_app_password'
+
+mail = Mail(app)
 
 # ── APP ─────────────────────────────────
 app = Flask(__name__)
@@ -135,7 +148,8 @@ def clean_number(val):
     digits = ''.join(filter(str.isdigit, str(val)))
 
     return digits if digits else None
-    
+
+# ── VERIFY CLIENTS ──────────────────────
 def verify_client(client_url, api_key):
 
     try:
@@ -148,7 +162,8 @@ def verify_client(client_url, api_key):
                     SELECT
                         client_has_paid,
                         client_phone,
-                        client_name
+                        client_name,
+                        client_email
                     FROM clients
                     WHERE
                         client_website_url = %s
@@ -171,11 +186,13 @@ def verify_client(client_url, api_key):
                 has_paid = result[0]      
                 phoneno = result[1]
                 client_name = result[2]
+                client_email = result[3]
                 return {
                     "valid": True,
                     "paid": has_paid,
                     "client_phone":phoneno,
-                    "client_name":client_name
+                    "client_name":client_name,
+                    "client_email":client_email
                 }
 
     except Exception as e:
@@ -186,12 +203,98 @@ def verify_client(client_url, api_key):
             "valid": False,
             "paid": False
         }
+        
+# ── EMAIL CREATION ──────────────────────
+def email_creator(session_id):
+
+    try:
+
+        with get_conn() as conn:
+
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    SELECT
+                        phoneno,
+                        location,
+                        budget,
+                        bhk,
+                        special_preferences,
+                        intent
+                    FROM leads
+                    WHERE
+                        session_id = %s 
+                                         
+                    """, (
+                    session_id
+                ))
+
+                result = cur.fetchone()
+
+                # no client found
+                if not result:
+
+                    return {
+                        "valid": False,
+                        "paid": False
+                    }
+
+                        phoneno = result[0]
+                        location = result[1]
+                        budget = result[2]
+                        bhk = result[3]
+                        special_preferences = result[4]
+                        intent = result[5]
+                return {
+                    "phoneno":phoneno,
+                    "location":location,
+                    "budget":budget,
+                    "bhk":bhk,
+                    "special_preferences":special_preferences,
+                    "intent":intent
+                }
+
+    except Exception as e:
+
+        print("VERIFY CLIENT ERROR:", str(e))
+
+        return {
+            "valid": False,
+            "paid": False
+        }
+
+
+# ── EMAIL SENDING ──────────────────────
+
+def send_lead_email(client_email, lead_data):
+    msg = Message(
+        subject="🔥 New Real Estate Lead",
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[client_email]
+    )
+
+    msg.body = f"""
+New Lead Received
+
+Name: {lead_data.get('name')}
+Phone: {lead_data.get('phone')}
+Budget: {lead_data.get('budget')}
+Location: {lead_data.get('location')}
+BHK: {lead_data.get('bhk')}
+
+Conversation:
+{lead_data.get('conversation')}
+"""
+
+    mail.send(msg)
+
 # ── CHAT ROUTE ─────────────────────────
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         req = request.json
         api_key = req.get("api_key")
+        session_id = req.get("SESSION_ID")
         client_url = request.headers.get("Origin")
         if not client_url:
             client_url = request.headers.get("Referer")
@@ -214,6 +317,7 @@ def chat():
     })
 
         client_name = client_data["client_name"]
+        client_email = client_data["client_email"]
         messages = req.get("messages", [])
 
         print("MESSAGES:", messages)
@@ -255,10 +359,11 @@ def chat():
                                 bhk,
                                 special_preferences,
                                 client_name,
-                                intent
+                                intent,
+                                session_id
                             )
 
-                            VALUES (%s,%s, %s, %s, %s,%s,%s)
+                            VALUES (%s,%s, %s, %s, %s,%s,%s,%s)
                         """, (
                             phone,
                             location, 
@@ -266,15 +371,23 @@ def chat():
                             int(bhk) if bhk else None,
                             special_preferences,
                             client_name,
-                            intent
+                            intent,
+                            session_id
                         ))
 
                 print("✅ LEAD STORED")
+                # here goes email implementation.....
+
+                lead_data = email_creator(session_id)
+                send_lead_email(client_email,lead_data)
+                
+                #whatsapp implement, removed from V1 fro reasons, lol
+                """
                 client = Client(account_sid, auth_token)
                 phoneno = client_data["client_phone"] or req.get("client_phone")
                 message = client.messages.create(
                 from_='whatsapp:+14155238886',
-                body=f"""
+                body=f
                 🔥 New Lead
                 Intent: {intent}
                 Phone: {phone}
@@ -284,7 +397,7 @@ def chat():
 
                 Preferences:
                 {special_preferences}
-                """,
+                ,
                 to=f'whatsapp:+91{phoneno}'
             )
                 print("WHATSAPP SENT:", message.sid)
@@ -328,6 +441,7 @@ def receive():
     data = request.json
     print("INCOMING:", data)
     return "ok", 200
+    """
 
 # ── START SERVER ───────────────────────
 if __name__ == "__main__":
