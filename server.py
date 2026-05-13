@@ -287,7 +287,7 @@ def chat():
 
         print("client_url:", client_url)
         print("api_key:", api_key)
-
+        print("session id", session_id)
         client_data = verify_client(client_url, api_key)
 
         if not client_data["valid"]:
