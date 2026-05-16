@@ -154,7 +154,7 @@ def verify_client(client_url, api_key):
                     SELECT
                         client_has_paid,
                         client_name,
-                        client_email
+                        client_email,
                     FROM clients
                     WHERE
                         client_website_url = %s
@@ -390,9 +390,10 @@ def chat():
                                 special_preferences,
                                 client_name,
                                 intent,
-                                session_id
+                                session_id,
+                                client_api_key
                             )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, (
                             phone,
                             location,
@@ -401,7 +402,8 @@ def chat():
                             special_preferences,
                             client_name,
                             intent,
-                            session_id
+                            session_id,
+                            api_key
                         ))
 
                 print("✅ LEAD STORED")
