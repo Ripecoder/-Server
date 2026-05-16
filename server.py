@@ -154,7 +154,7 @@ def verify_client(client_url, api_key):
                     SELECT
                         client_has_paid,
                         client_name,
-                        client_email,
+                        client_email
                     FROM clients
                     WHERE
                         client_website_url = %s
