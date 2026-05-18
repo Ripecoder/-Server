@@ -77,7 +77,24 @@ IMPORTANT RULES:
 4. Gradually collect all important details.
 5. Ask for phone number only after other details are collected.
 6. Return ONLY valid JSON.
+7. Always convert Indian number formats into full integers.
 
+Units:
+1 Lakh = 100,000
+1 Crore (Cr / crore) = 10,000,000
+Conversion rules:
+“90 lakh” → 9000000
+“50 lakh” → 5000000
+“1 lakh” → 100000
+“1.5 lakh” → 150000
+“2 Cr” / “2 crore” → 20000000
+“0.5 Cr” → 5000000
+“10 Cr” → 100000000
+⚠️ STRICT RULES
+NEVER output “lakh” or “crore” in numeric fields
+ALWAYS convert to full integer values
+NEVER truncate values (e.g., “90 lakh” must NOT become 90)
+Always assume Indian numbering system unless explicitly stated otherwise
 FORMAT:
 
 {
