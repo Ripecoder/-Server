@@ -11,12 +11,35 @@ from flask_cors import CORS
 
 from flask_mail import Mail, Message
 
-
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 # ── APP ─────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
+# ── RATE LIMITING ───────────────────────
+def rate_limit_key():
+    """Limit per IP + API key on /chat so one client cannot burn Groq quota."""
+    if request.path == "/chat" and request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        api_key = data.get("api_key") or "no-key"
+        return f"{get_remote_address()}:{api_key}"
+    return get_remote_address()
 
+
+limiter = Limiter(
+    key_func=rate_limit_key,
+    app=app,
+    default_limits=["120 per hour"],
+    storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
+)
+
+
+@app.errorhandler(429)
+def rate_limit_handler(error):
+    return jsonify({
+        "reply": "Too many requests. Please wait a moment and try again."
+    }), 429
 # ── EMAIL SETUP ─────────────────────────
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -326,6 +349,7 @@ Special Preferences:
 
 # ── CHAT ROUTE ─────────────────────────
 @app.route("/chat", methods=["POST"])
+@limiter.limit("30 per minute")
 def chat():
 
     try:
@@ -449,6 +473,7 @@ def chat():
 
 #uptime bot
 @app.route("/health")
+@limiter.exempt
 def health():
     return "OK", 200
 
