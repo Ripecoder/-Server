@@ -447,6 +447,11 @@ def chat():
             "reply": "Server error"
         }), 500
 
+#uptime bot
+@app.route("/health")
+def health():
+    return "OK", 200
+
 
 # ── HEALTH CHECK ───────────────────────
 @app.route("/")
