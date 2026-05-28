@@ -192,7 +192,7 @@ def verify_client(client_url, api_key):
 
                 cur.execute("""
                     SELECT
-                        client_has_paid,
+                        subscription_end_time,
                         client_name,
                         client_email
                     FROM clients
@@ -213,13 +213,16 @@ def verify_client(client_url, api_key):
                         "paid": False
                     }
 
-                has_paid = result[0]
+                expiry_date = result[0]
                 client_name = result[1]
                 client_email = result[2]
+               
+                today = datetime.now(timezone.utc)
+                subscription_active = expiry_date > today
 
                 return {
                     "valid": True,
-                    "paid": has_paid,
+                    "paid": subscription_active,
                     "client_name": client_name,
                     "client_email": client_email
                 }
