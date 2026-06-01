@@ -424,7 +424,7 @@ def chat():
 
         client_url = request.headers.get("Origin")
 
-        client_url = request.headers.get("Origin")
+        
 
         if not client_url:
             client_url = request.headers.get("Referer")
@@ -434,7 +434,8 @@ def chat():
             client_url = f"{parsed.scheme}://{parsed.netloc}"
         else:
              client_url = None
-        
+        if not client_url:
+             return jsonify({"reply": "Invalid request origin."})
         print("client_url:", client_url)
         print("api_key:", api_key)
         print("session id", session_id)
@@ -459,8 +460,9 @@ def chat():
 
         result = get_ai_response_and_data(messages)
         if not result:
+            print("AI FAILURE: empty response")
             return jsonify({
-                print("AI FAILURE: empty response")
+                
                 "reply": "AI temporarily unavailable."
             })
 
@@ -471,12 +473,6 @@ def chat():
         print("EXTRACTED:", ext)
 
         phone = clean_number(ext.get("phone"))
-        bhk = clean_number(ext.get("bhk"))
-        budget = clean_number(ext.get("budget"))
-
-        location = ext.get("location")
-        special_preferences = ext.get("special_preferences")
-        intent = ext.get("intent")
 
         # ── DUPLICATE LEAD GUARD ─────────────────
         if phone and api_key:
@@ -485,6 +481,12 @@ def chat():
                 return jsonify({
                      "reply": result.get("reply", "")
                 })
+        bhk = clean_number(ext.get("bhk"))
+        budget = clean_number(ext.get("budget"))
+
+        location = ext.get("location")
+        special_preferences = ext.get("special_preferences")
+        intent = ext.get("intent")
     
         # ── STORE LEAD ──────────────────
         if phone:
