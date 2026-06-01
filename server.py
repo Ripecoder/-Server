@@ -244,6 +244,13 @@ def verify_client(client_url, api_key):
                 client_email = result[2]
                
                 today = datetime.now(timezone.utc)
+
+                if not expiry_date:
+                    return {"valid": True, "paid": False}
+
+                if expiry_date.tzinfo is None:
+                    expiry_date = expiry_date.replace(tzinfo=timezone.utc)
+                
                 subscription_active = expiry_date > today
 
                 return {
@@ -376,6 +383,33 @@ Special Preferences:
         print("EMAIL ERROR:", str(e))
 """
 
+def lead_already_exists(phone, api_key):
+    """
+    Checks if the same lead (phone + api_key) already exists.
+    Used to prevent duplicate inserts + duplicate email sends.
+    """
+
+    if not phone or not api_key:
+        return False
+
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    SELECT 1
+                    FROM leads
+                    WHERE phoneno = %s
+                      AND client_api_key = %s
+                    LIMIT 1
+                """, (phone, api_key))
+
+                return cur.fetchone() is not None
+
+    except Exception as e:
+        print("LEAD CHECK ERROR:", str(e))
+        return False
+
 # ── CHAT ROUTE ─────────────────────────
 @app.route("/chat", methods=["POST"])
 @limiter.limit("30 per minute")
@@ -390,13 +424,17 @@ def chat():
 
         client_url = request.headers.get("Origin")
 
+        client_url = request.headers.get("Origin")
+
         if not client_url:
             client_url = request.headers.get("Referer")
 
-        parsed = urlparse(client_url)
-
-        client_url = f"{parsed.scheme}://{parsed.netloc}"
-
+        if client_url:
+            parsed = urlparse(client_url)
+            client_url = f"{parsed.scheme}://{parsed.netloc}"
+        else:
+             client_url = None
+        
         print("client_url:", client_url)
         print("api_key:", api_key)
         print("session id", session_id)
@@ -420,10 +458,9 @@ def chat():
         messages = req.get("messages", [])
 
         result = get_ai_response_and_data(messages)
-
         if not result:
-
             return jsonify({
+                print("AI FAILURE: empty response")
                 "reply": "AI temporarily unavailable."
             })
 
@@ -441,6 +478,14 @@ def chat():
         special_preferences = ext.get("special_preferences")
         intent = ext.get("intent")
 
+        # ── DUPLICATE LEAD GUARD ─────────────────
+        if phone and api_key:
+            if lead_already_exists(phone, api_key):
+                print(f"[DUPLICATE LEAD IGNORED] phone={phone}, api_key={api_key}")
+                return jsonify({
+                     "reply": result.get("reply", "")
+                })
+    
         # ── STORE LEAD ──────────────────
         if phone:
 
